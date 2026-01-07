@@ -1,13 +1,15 @@
 # Overlord: Hybrid Algorithmic Trading System
 
 **Architecture:** Python Intelligence Engine (Brain) + cTrader Execution Module (Soldier)
-**Connectivity:** TCP/IP Sockets (Localhost)
+**Connectivity:** TCP/IP Sockets (Localhost) & REST API
 **Strategy:** Volume-Confirmed Trend Following (RVOL)
 
 ## Project Overview
-Overlord is a hybrid trading architecture designed to bridge the gap between **External Market Data** (Futures Volume, Sentiment) and **Retail Execution** (Spot Forex/CFDs).
+Overlord is a hybrid trading architecture designed to bridge the gap between **External Market Data** (Futures Volume, Sentiment) and **Retail Execution**.
 
-Unlike standard bots that rely solely on broker-provided price feeds, Overlord uses a "Brain" (Python) to validate moves against the "Truth" of Exchange Volume (e.g., CME Futures) before authorizing the "Soldier" (cTrader) to execute.
+Unlike standard bots, Overlord acts as a central "Intelligence Hub" that can route trade instructions to different brokers based on the asset class or strategy:
+1.  **cTrader (IC Markets):** For high-frequency Spot Forex/Metals execution via a custom C# Bridge.
+2.  **IG Markets:** For direct execution via Python REST API (bypassing trading platforms).
 
 ## System Architecture
 
@@ -24,13 +26,15 @@ graph TD
         D -- NO --> F[Log 'Fakeout' & Wait]
     end
 
-    subgraph EXECUTION [Step 3: Execution Bridge]
-        E -->|TCP Socket JSON| G[cTrader Soldier]
-        G -->|Manage Risk| H[IG Markets / Spot]
-        H -->|Feedback Loop| G
+    subgraph EXECUTION [Step 3: Dual Execution Routing]
+        E -->|Route A: TCP Socket| G[cTrader Soldier]
+        G -->|IC MARKETS| I[Spot Execution]
+        
+        E -.->|Route B: REST API| J[IG MARKETS]
+        J -.->|Direct Python| K[CFD Execution]
     end
 
     %% Professional High-Contrast Color Scheme
     style B fill:#2b2b2b,stroke:#00ff41,stroke-width:2px,color:#fff
     style G fill:#003366,stroke:#00bfff,stroke-width:2px,color:#fff
-    style D fill:#444,stroke:#fff,stroke-width:1px,color:#fff
+    style J fill:#440000,stroke:#ff0000,stroke-width:2px,color:#fff
