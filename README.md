@@ -42,3 +42,31 @@ graph TD
     style G fill:#003366,stroke:#00bfff,stroke-width:2px,color:#fff
     style I fill:#003366,stroke:#fff,stroke-width:1px,color:#fff
     style J fill:#440000,stroke:#ff0000,stroke-width:2px,color:#fff
+
+    ## Key Features
+
+### 1. Volume "Truth" Verification
+
+The system calculates **Relative Volume (RVOL)** using external data feeds.
+
+* **The Logic:** If Spot Price moves but Futures Volume is low (< 1.2x average), the system identifies a "Fakeout" and holds position.
+
+### 2. Multi-Broker Routing
+
+The Python Brain is agnostic to the execution venue.
+
+* **IC Markets (cTrader):** Selected for strategies requiring millisecond latency and C# hedging.
+* **IG Markets (REST):** Selected for assets where Python direct execution is preferred.
+
+### 3. Failsafe Risk Management
+
+* **Dynamic Risk:** Stop Loss is calculated as `2.0 * ATR` (Average True Range).
+* **Data Safety:** Python acts as a firewall; if data feeds fail, execution modules default to hard-coded safety stops.
+
+## Technical Stack
+
+* **Python 3.10+:** `pandas`, `yfinance`, `requests` (IG API), `socket`
+* **C# / .NET:** `System.Net.Sockets`, `cAlgo.API` (cTrader)
+
+---
+*Developed by Bugsy77 - 2026*
