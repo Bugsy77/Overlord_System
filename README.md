@@ -5,11 +5,13 @@
 **Strategy:** Volume-Confirmed Trend Following (RVOL)
 
 ## Project Overview
+
 Overlord is a hybrid trading architecture designed to bridge the gap between **External Market Data** (Futures Volume, Sentiment) and **Retail Execution**.
 
 It acts as a central "Intelligence Hub" that routes trades to the optimal broker based on the required execution method:
-1.  **Route A (IC Markets):** Uses a **cTrader Bridge** for high-frequency Spot execution (requires Soldier Bot).
-2.  **Route B (IG Markets):** Uses **Direct Python API** for CFD execution (bypassing trading platforms).
+
+1. **Route A (IC Markets):** Uses a **cTrader Bridge** for high-frequency Spot execution (requires Soldier Bot).
+2. **Route B (IG Markets):** Uses **Direct Python API** for CFD execution (bypassing trading platforms).
 
 ## System Architecture
 
@@ -29,10 +31,10 @@ graph TD
     subgraph EXECUTION [Step 3: Dual Execution Routing]
         %% Route A: The Soldier Path
         E -->|TCP Socket Signal| G[cTrader Soldier]
-        G -->|Execute Order| I[IC MARKETS (Spot)]
-        
+        G -->|Execute Order| I["IC MARKETS (Spot)"]
+
         %% Route B: The Direct Path
-        E -.->|Python REST API| J[IG MARKETS (CFD)]
+        E -.->|Python REST API| J["IG MARKETS (CFD)"]
     end
 
     %% Professional High-Contrast Color Scheme
