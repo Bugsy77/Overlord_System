@@ -1,1 +1,0 @@
-{"Symbol": "USOIL", "Direction": "BUY", "Strategy": "Trend Runner", "LotSize": 0.001, "SL_Pips": 10.0, "TP_Pips": 15.0, "Reason": "VWAP_MACD_Cross | Vol: 383"}
