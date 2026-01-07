@@ -30,5 +30,7 @@ graph TD
         H -->|Feedback Loop| G
     end
 
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style G fill:#bbf,stroke:#333,stroke-width:2px
+    %% Professional High-Contrast Color Scheme
+    style B fill:#2b2b2b,stroke:#00ff41,stroke-width:2px,color:#fff
+    style G fill:#003366,stroke:#00bfff,stroke-width:2px,color:#fff
+    style D fill:#444,stroke:#fff,stroke-width:1px,color:#fff
