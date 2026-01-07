@@ -42,7 +42,7 @@ graph TD
     style G fill:#003366,stroke:#00bfff,stroke-width:2px,color:#fff
     style I fill:#003366,stroke:#fff,stroke-width:1px,color:#fff
     style J fill:#440000,stroke:#ff0000,stroke-width:2px,color:#fff
-
+    ```
     ## Key Features
 
 ### 1. Volume "Truth" Verification
