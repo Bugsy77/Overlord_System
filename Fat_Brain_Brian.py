@@ -1,14 +1,14 @@
 """
-SYSTEM: FAT BRAIN BRIAN (Phase 4: VOLUME TRUTH)
+SYSTEM: FAT BRAIN BRIAN (Phase 4: VOLUME TRUTH + ZeroMQ BRIDGE)
 Strategy:
   1. News sets the Bias (Buy/Sell).
-  2. Volume confirms the Move (Must be > 1.5x Average).
-  3. Ignores Broker Price movement if Volume is weak (Anti-Fakeout).
+  2. Volume confirms the Move (Must be > 1.2x Average).
+  3. Broadcasts JSON signals via ZeroMQ to cTrader.
 """
 
 import time
-import socket
-import json
+import zmq  # <--- NEW LIBRARY
+import json # <--- NEW LIBRARY
 import yfinance as yf
 import pandas as pd
 import numpy as np 
@@ -37,13 +37,24 @@ init()
 
 class FatBrainBrian:
     def __init__(self):
-        print(f"{Fore.CYAN}--- FAT BRAIN BRIAN (VOLUME TRUTH EDITION) ---{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}--- FAT BRAIN BRIAN (VOLUME TRUTH + ZeroMQ) ---{Style.RESET_ALL}")
         
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((config.HOST, config.ZMQ_PORT))
-        self.server.listen(1)
-        self.conn = None
+        # --- NEW ZEROMQ SETUP ---
+        print(f"{Fore.YELLOW}[INIT] Starting Overlord Radio Tower...{Style.RESET_ALL}")
+        self.context = zmq.Context()
+        self.publisher = self.context.socket(zmq.PUB)
         
+        # Bind to Port 5555 (The 'Frequency')
+        # "tcp://*:5555" allows any local client to listen
+        bind_address = f"tcp://*:{config.ZMQ_PORT}"
+        try:
+            self.publisher.bind(bind_address)
+            print(f"{Fore.GREEN}✅ Radio Tower Active: Broadcasting on {bind_address}{Style.RESET_ALL}")
+        except zmq.ZMQError as e:
+            print(f"{Fore.RED}❌ ZMQ Bind Error: {e}{Style.RESET_ALL}")
+            exit()
+        
+        # IG Setup
         self.ig = None
         if IG_AVAILABLE:
             try:
@@ -52,10 +63,6 @@ class FatBrainBrian:
                 print(f"{Fore.GREEN}[IG] Connected.{Style.RESET_ALL}")
             except Exception:
                 print(f"{Fore.RED}[IG] Connection Failed (Check config.py){Style.RESET_ALL}")
-
-        print(f"[NET] Waiting for cTrader on {config.ZMQ_PORT}...")
-        self.conn, addr = self.server.accept()
-        print(f"[NET] Connected to cTrader: {addr}")
 
     def execute_ig_trade(self, symbol, signal, sl, tp):
         if not self.ig: return
@@ -72,12 +79,26 @@ class FatBrainBrian:
             print(f"{Fore.RED}[IG] Error: {e}{Style.RESET_ALL}")
 
     def send_socket_signal(self, payload):
+        """
+        Broadcasts the trade signal as a JSON message over ZeroMQ.
+        Topic: "EXECUTION"
+        """
         try:
-            msg = json.dumps(payload) + "\n"
-            self.conn.sendall(msg.encode('utf-8'))
-            print(f"{Fore.BLUE}[SOCKET] Sent: {payload['signal']} (SL: {payload['sl']}){Style.RESET_ALL}")
+            # 1. Add Timestamp and Comment
+            payload['timestamp'] = time.time()
+            payload['comment'] = "Overlord_Vol_Truth"
+            
+            # 2. Convert to JSON
+            message_json = json.dumps(payload)
+            
+            # 3. Publish: [Topic] [Message]
+            topic = "EXECUTION"
+            self.publisher.send_string(f"{topic} {message_json}")
+            
+            print(f"{Fore.BLUE}[RADIO] Broadcast Sent: {message_json}{Style.RESET_ALL}")
+            
         except Exception as e:
-            print(f"[NET ERROR] {e}")
+            print(f"{Fore.RED}[NET ERROR] Failed to broadcast: {e}{Style.RESET_ALL}")
 
     def get_news_sentiment(self, ticker):
         try:
@@ -127,21 +148,18 @@ class FatBrainBrian:
             atr = self.calculate_atr(data)
 
             # 3. VOLUME ANALYSIS (The "Truth" Check)
-            # Calculate Average Volume of last 20 candles
             vol_avg = data['Volume'].rolling(window=20).mean().iloc[-1].item()
             
-            # Check for NaN in volume
             if pd.isna(vol_avg) or vol_avg == 0:
                 rvol = 0
             else:
-                # Relative Volume (RVOL) = Current / Average
                 rvol = round(current_vol / vol_avg, 2)
 
             return {
                 "price": round(current_close, 2),
                 "trend": trend,
                 "atr": atr,
-                "rvol": rvol,          # How much stronger is volume today?
+                "rvol": rvol,
                 "vol_avg": vol_avg
             }
             
@@ -168,12 +186,7 @@ class FatBrainBrian:
                         sl = 0
                         tp = 0
                         
-                        # --- THE NEW STRATEGY ---
-                        # We only trade if:
-                        # A) Sentiment is Active (Not 0)
-                        # B) Volume is Strong (> 1.2x Average)
-                        # C) Trend aligns
-                        
+                        # --- STRATEGY LOGIC ---
                         is_volume_high = tech['rvol'] > 1.2
                         
                         if tech['trend'] == "BULLISH" and sent > 0 and is_volume_high:
@@ -190,12 +203,23 @@ class FatBrainBrian:
                         vol_color = Fore.GREEN if is_volume_high else Fore.RED
                         print(f"[{symbol}] Sent:{sent:.2f} | {vol_color}Vol:{tech['rvol']}x{Style.RESET_ALL} | Trend:{tech['trend']}")
 
-                        # Send Orders
-                        payload = {"symbol": symbol, "signal": signal, "sl": round(sl, 2), "tp": round(tp, 2)}
-                        self.send_socket_signal(payload)
-                        
+                        # BROADCAST SIGNAL (Even if HOLD, we can send heartbeat if needed, but here we send Trigger)
                         if signal != "HOLD":
                             print(f"{Fore.GREEN}>>> TRIGGER: High Volume + News Confirmation!{Style.RESET_ALL}")
+                            
+                            # Prepare Payload
+                            payload = {
+                                "symbol": symbol, 
+                                "action": signal,  # Changed 'signal' to 'action' for clarity
+                                "volume": 1000,    # Default volume, cBot can override
+                                "sl": round(sl, 2), 
+                                "tp": round(tp, 2)
+                            }
+                            
+                            # 1. Send to cBot (ZeroMQ)
+                            self.send_socket_signal(payload)
+                            
+                            # 2. Send to IG (Optional)
                             self.execute_ig_trade(symbol, signal, sl, tp)
                 
                 except Exception as e:
